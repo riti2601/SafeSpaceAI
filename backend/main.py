@@ -1,10 +1,32 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware   # ✅ Import this
 from pydantic import BaseModel
 import openai
+import os
 
-openai.api_key = "YOUR_OPENAI_KEY"  # Replace with environment variable
+# ✅ Use environment variable instead of hardcoding
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI()
+
+# ✅ Add allowed origins (your Vercel frontend + localhost for testing)
+origins = [
+    "https://safe-space-ai-seven.vercel.app",  # Vercel frontend
+    "http://localhost:3000",                   # Local frontend testing
+]
+
+# ✅ Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def root():
+    return {"message": "Hello from backend"}
 
 class ChatRequest(BaseModel):
     messages: list
@@ -24,4 +46,5 @@ async def chat(req: ChatRequest):
 
         return {"reply": reply}
     except Exception as e:
+        print("Error:", e)  # log the actual error
         return {"reply": "Sorry, I couldn't process your request right now."}
