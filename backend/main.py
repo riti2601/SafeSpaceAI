@@ -1,21 +1,20 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware   # ✅ Import this
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import openai
+from openai import OpenAI
 import os
 
-# ✅ Use environment variable instead of hardcoding
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Load API key from environment variable (Render -> Environment Variables)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI()
 
-# ✅ Add allowed origins (your Vercel frontend + localhost for testing)
+# Allow frontend domains
 origins = [
-    "https://safe-space-ai-seven.vercel.app",  # Vercel frontend
-    "http://localhost:3000",                   # Local frontend testing
+    "https://safe-space-ai-seven.vercel.app",  # your Vercel frontend
+    "http://localhost:3000",                   # local testing
 ]
 
-# ✅ Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -34,17 +33,19 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(req: ChatRequest):
     try:
-        response = openai.ChatCompletion.create(
+        # Call OpenAI API
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=req.messages
         )
-        reply = response["choices"][0]["message"]["content"]
+        reply = response.choices[0].message.content
 
         # Trigger warning detection
         if any(word in reply.lower() for word in ["suicide", "kill", "harm"]):
             reply += "\n\n⚠️ If you're in crisis, please reach out to a local helpline immediately."
 
         return {"reply": reply}
+
     except Exception as e:
-        print("Error:", e)  # log the actual error
-        return {"reply": "Sorry, I couldn't process your request right now."}
+        # Debugging: show the actual error
+        return {"reply": f"Error: {str(e)}"}
